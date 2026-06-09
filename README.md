@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html>
 <iframe 
     src="https://yourwebsite.com" 
@@ -7,4 +6,4 @@
     style="border: none; overflow: hidden;" 
     allowfullscreen>
 </iframe>
-</html
+</html>
