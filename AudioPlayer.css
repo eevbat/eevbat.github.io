@@ -3,11 +3,9 @@
 *:after {
   box-sizing: border-box;
 }
-
 .hide {
   display: none !important;
 }
-
 button {
   margin: 0;
   padding: 0;
@@ -17,17 +15,14 @@ button {
 }
 
 .material-icons.md-dark { color: rgba(0, 0, 0, 0.75); }
-
 /*------------------------
     Audio Player - AP
 ------------------------*/
+/* Player and control panel */
 .ap {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 50px;
-  margin: auto;
+  position: relative;
+  width: 100%;
+  min-height: 100%;
   font-family: Arial, sans-serif;
   font-size: 14px;
   -webkit-user-select: none;
@@ -36,12 +31,23 @@ button {
           user-select: none;
   color: #333;
   background: #f1f1f1;
-  border-top: 1px solid #ccc;
-  z-index: 9999;
+  border: 1px solid #ccc;
+  box-shadow: 0 0 14px rgba(0,0,0,0.15);
+  z-index: 1;
 }
 .ap-inner {
-  max-width: 1440px;
+  max-width: 700px;
   margin: 0 auto;
+  height: 100%;
+}
+.ap-panel {
+  align-items: center;
+}
+.ap--track {
+  padding: 0 12px;
+}
+.ap-title {
+  padding-right: 60px;
 }
 .ap-panel {
   display: -webkit-box;
@@ -254,6 +260,7 @@ button {
   -webkit-animation: blink 1.5s linear infinite;
           animation: blink 1.5s linear infinite;
 }
+/* --------------------------- */
 
 @media(max-width:880px) {
   .ap-item > .ap-controls {
@@ -299,7 +306,6 @@ button {
             order: 2;
   }
 }
-
 /*--------------------
   PlayList
 --------------------*/
@@ -375,7 +381,7 @@ button {
   -webkit-flex: 1;
       -ms-flex: 1;
           flex: 1;
-  }
+}
 .pl-title:hover {
   text-decoration: underline;
 }
@@ -470,22 +476,4 @@ button {
   max-width: 100%;
   max-height: 100%;
   display: block;
-}
-
-/*--------------------
-  GIF Sync HUD Canvas Layout
---------------------*/
-#gif-overlay-container {
-  position: fixed;
-  bottom: 50px; /* Aligns container directly above the player block bar */
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 9998; /* Sits cleanly directly underneath the playlist menu layers */
-  pointer-events: none; 
-}
-
-#hud-canvas {
-  display: block;
-  width: 300px;  
-  height: 200px; 
 }
