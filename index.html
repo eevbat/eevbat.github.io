@@ -5,7 +5,7 @@
     <title>Musical Inspiration</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <link href="https://googleapis.com" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <link rel="stylesheet" href="AudioPlayer.css">
     <style>
     #player {
@@ -51,27 +51,52 @@
             {'icon': iconImage, 'title': 'Finale type shi', 'file': 'Potential boss theme inspiration/17. Boss Battle.mp3', 'bpm': 140},
         ];
 
-        AP.init({
-            container: '#player',
-            volume: 0.7,
-            autoPlay: true,
-            notification: true,
-            playList: playlistData
-        });
-
         const canvas = document.getElementById('hud-canvas');
         const ctx = canvas.getContext('2d');
 
-        const BEATS_PER_ANIMATION_LOOP = 4; 
-        const TOTAL_FRAMES = 12;            
+        let playerInitialized = false;
 
-        let currentBPM = 120; 
+        function initPlayer() {
+            if (playerInitialized) {
+                return;
+            }
+
+            if (!window.AP) {
+                console.warn('AudioPlayer.js not loaded yet, retrying...');
+                setTimeout(initPlayer, 100);
+                return;
+            }
+
+            AP.init({
+                container: '#player',
+                volume: 0.7,
+                autoPlay: true,
+                notification: true,
+                playList: playlistData
+            });
+
+            playerInitialized = true;
+            console.log('Audio player initialized');
+        }
+
+        window.addEventListener('load', () => {
+            initPlayer();
+            attachAudioEvents();
+            requestAnimationFrame(syncAnimation);
+        });
+
+        const BEATS_PER_ANIMATION_LOOP = 4;
+        const GIF_FRAME_COUNT = 6;
+        const GIF_FRAME_FOLDER = 'the gif';
+        const GIF_FRAME_PREFIX = 'forgbop';
+
+        let currentBPM = 120;
         let loopDuration = (60 / currentBPM) * BEATS_PER_ANIMATION_LOOP;
 
         const frames = [];
-        for (let i = 0; i < TOTAL_FRAMES; i++) {
+        for (let i = 1; i <= GIF_FRAME_COUNT; i++) {
             const img = new Image();
-            img.src = `frames/frame_${i}.png`; 
+            img.src = `${GIF_FRAME_FOLDER}/${GIF_FRAME_PREFIX}${i}.png`;
             frames.push(img);
         }
 
@@ -80,10 +105,10 @@
 
         function updateTrackBPM() {
             if (!nativeAudio) return;
-            
+
             const currentSrc = nativeAudio.src;
-            if (currentSrc === lastTrackSrc) return; 
-            
+            if (currentSrc === lastTrackSrc) return;
+
             lastTrackSrc = currentSrc;
 
             const foundTrack = playlistData.find(track => {
@@ -99,14 +124,23 @@
         }
 
         function syncAnimation() {
-            if (nativeAudio && !nativeAudio.paused && !nativeAudio.ended) {
+            if (nativeAudio && !nativeAudio.paused && !nativeAudio.ended && loopDuration > 0) {
                 updateTrackBPM();
 
                 const currentTime = nativeAudio.currentTime;
-                const loopProgress = (currentTime % loopDuration) / loopDuration;
-                const currentFrameIndex = Math.floor(loopProgress * TOTAL_FRAMES);
+                const secondsPerBeat = 60 / currentBPM;
+                const beatIndex = Math.floor(currentTime / secondsPerBeat) % BEATS_PER_ANIMATION_LOOP;
+                const beatProgress = (currentTime % secondsPerBeat) / secondsPerBeat;
 
-                const currentFrame = frames[currentFrameIndex];
+                let currentFrame;
+                if (beatIndex === 0) {
+                    const firstBeatFrame = Math.floor(beatProgress * 3);
+                    currentFrame = frames[Math.min(firstBeatFrame, 2)];
+                } else {
+                    const otherBeatFrameIndex = 3 + ((beatIndex - 1) % 3);
+                    currentFrame = frames[otherBeatFrameIndex];
+                }
+
                 if (currentFrame && currentFrame.complete) {
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                     ctx.drawImage(currentFrame, 0, 0, canvas.width, canvas.height);
@@ -115,25 +149,30 @@
             requestAnimationFrame(syncAnimation);
         }
 
-        window.addEventListener('DOMContentLoaded', () => {
-            nativeAudio = document.querySelector('#player audio');
+        function attachAudioEvents() {
+            nativeAudio = window._nativeAudioRef || document.querySelector('#player audio');
 
-            if (nativeAudio) {
-                nativeAudio.addEventListener('play', () => {
-                    updateTrackBPM();
-                    requestAnimationFrame(syncAnimation);
-                });
-
-                nativeAudio.addEventListener('timeupdate', updateTrackBPM);
-                
-                if (!nativeAudio.paused) {
-                    updateTrackBPM();
-                    requestAnimationFrame(syncAnimation);
-                }
-            } else {
-                console.error("Native HTML5 <audio> component could not be tracked inside the parent wrapper.");
+            if (!nativeAudio) {
+                console.warn('Native audio object not found yet. Retrying...');
+                setTimeout(attachAudioEvents, 100);
+                return;
             }
-        });
+
+            nativeAudio.addEventListener('play', () => {
+                updateTrackBPM();
+                requestAnimationFrame(syncAnimation);
+            });
+
+            nativeAudio.addEventListener('timeupdate', updateTrackBPM);
+
+            if (!nativeAudio.paused) {
+                updateTrackBPM();
+                requestAnimationFrame(syncAnimation);
+            }
+
+            console.log('Native audio attached for HUD sync.', nativeAudio);
+        }
+
     </script>
   </body>
 </html>
