@@ -119,8 +119,14 @@ var AudioPlayer = (function() {
 
     settings = extend(settings, options);
 
-    var container = document.querySelector(settings.container) || document.body;
+    var container = document.querySelector(settings.container);
+    if (!container) {
+      console.warn('AudioPlayer: container not found, falling back to body:', settings.container);
+      container = document.body;
+    }
     container.insertBefore(player, null);
+    player.style.width = '100%';
+    player.style.boxSizing = 'border-box';
 
     // get player elements
     playBtn        = player.querySelector('.ap-toggle-btn');

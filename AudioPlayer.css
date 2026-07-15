@@ -22,7 +22,7 @@ button {
 .ap {
   position: relative;
   width: 100%;
-  min-height: 100%;
+  min-height: 120px;
   font-family: Arial, sans-serif;
   font-size: 14px;
   -webkit-user-select: none;
@@ -269,6 +269,15 @@ button {
         -ms-flex: 1;
             flex: 1;
   }
+}
+#player .ap {
+  display: block !important;
+}
+#player .ap-inner {
+  display: block !important;
+}
+#player .ap-panel {
+  display: flex !important;
 }
 @media(max-width:550px) {
   .ap {
