@@ -17,6 +17,156 @@
 
     #gif-overlay-container {
         position: fixed;
+        bottom: 50px; 
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 9998; 
+        pointer-events: none; 
+    }
+    #hud-canvas {
+        display: block;
+        width: 300px;  
+        height: 200px; 
+    }
+    </style>
+  </head>
+
+  <body>
+     <div id='player'></div>
+
+     <div id="gif-overlay-container">
+        <canvas id="hud-canvas" width="300" height="200"></canvas>
+     </div>
+
+    <script src="AudioPlayer.js"></script>
+
+    <script>
+        var iconImage = 'images.png';
+
+        const playlistData = [
+            {'icon': iconImage, 'title': 'Non henchmen Battle', 'file': 'regular battle themes/1-15. Battle Among Friends - Waddle Dee.mp3', 'bpm': 130},
+            {'icon': iconImage, 'title': 'Villain Encounter', 'file': 'Encounter theme/281. Starring Wario.mp3', 'bpm': 115},
+            {'icon': iconImage, 'title': 'Henchmen Battle', 'file': 'Potential boss theme inspiration/01-21 Duel Zone.mp3', 'bpm': 150},
+            {'icon': iconImage, 'title': 'Snake battle type shi', 'file': 'Potential boss theme inspiration/01-08 Final Destination - Super Smash Bros..mp3', 'bpm': 165},
+            {'icon': iconImage, 'title': 'Finale type shi', 'file': 'Potential boss theme inspiration/17. Boss Battle.mp3', 'bpm': 140},
+        ];
+
+        AP.init({
+            container: '#player',
+            volume: 0.7,
+            autoPlay: true,
+            notification: true,
+            playList: playlistData
+        });
+
+        const canvas = document.getElementById('hud-canvas');
+        const ctx = canvas.getContext('2d');
+
+        const BEATS_PER_ANIMATION_LOOP = 1; 
+        const TOTAL_PHYSICAL_FILES = 3;     
+        const MATH_STEPS_PER_LOOP = 4;      
+
+        let currentBPM = 120; 
+        let loopDuration = (60 / currentBPM) * BEATS_PER_ANIMATION_LOOP;
+
+        const frames = [];
+        for (let i = 0; i < TOTAL_PHYSICAL_FILES; i++) {
+            const img = new Image();
+            img.src = `frames/frame_${i}.png`; 
+            frames.push(img);
+        }
+
+        let lastTrackSrc = "";
+
+        function updateTrackBPM() {
+            if (!window._nativeAudioRef) return;
+            
+            const currentSrc = window._nativeAudioRef.src;
+            if (currentSrc === lastTrackSrc) return; 
+            
+            lastTrackSrc = currentSrc;
+
+            const foundTrack = playlistData.find(track => {
+                const encodedFile = encodeURI(track.file);
+                return currentSrc.endsWith(encodedFile);
+            });
+
+            if (foundTrack && foundTrack.bpm) {
+                currentBPM = foundTrack.bpm;
+                loopDuration = (60 / currentBPM) * BEATS_PER_ANIMATION_LOOP;
+                console.log(`Track changed! Title: "${foundTrack.title}" | Dynamic BPM Set to: ${currentBPM}`);
+            }
+        }
+
+        function syncAnimation() {
+            if (window._nativeAudioRef && !window._nativeAudioRef.paused && !window._nativeAudioRef.ended) {
+                updateTrackBPM();
+
+                const currentTime = window._nativeAudioRef.currentTime;
+                const loopProgress = (currentTime % loopDuration) / loopDuration;
+                
+                const stepIndex = Math.floor(loopProgress * MATH_STEPS_PER_LOOP);
+
+                let currentFrameIndex = 2; 
+                
+                if (stepIndex === 0) {
+                    currentFrameIndex = 2; 
+                } else if (stepIndex === 1) {
+                    currentFrameIndex = 1; 
+                } else if (stepIndex === 2) {
+                    currentFrameIndex = 0; 
+                } else if (stepIndex === 3) {
+                    currentFrameIndex = 1; 
+                }
+
+                const currentFrame = frames[currentFrameIndex];
+                if (currentFrame && currentFrame.complete) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(currentFrame, 0, 0, canvas.width, canvas.height);
+                }
+            }
+            requestAnimationFrame(syncAnimation);
+        }
+
+        window.addEventListener('load', () => {
+            if (window._nativeAudioRef) {
+                window._nativeAudioRef.addEventListener('play', () => {
+                    updateTrackBPM();
+                    requestAnimationFrame(syncAnimation);
+                });
+
+                window._nativeAudioRef.addEventListener('timeupdate', updateTrackBPM);
+                
+                if (!window._nativeAudioRef.paused) {
+                    updateTrackBPM();
+                    requestAnimationFrame(syncAnimation);
+                }
+            } else {
+                console.error("Exposed audio reference not found. Ensure AudioPlayer.js was modified.");
+            }
+        });
+    </script>
+  </body>
+</html>
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Musical Inspiration</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link href="https://googleapis.com" rel="stylesheet">
+    <link rel="stylesheet" href="AudioPlayer.css">
+    <style>
+    #player {
+        position: relative;
+        max-width: 700px;
+        height: 500px;
+        border: solid 1px gray;
+    }
+
+    #gif-overlay-container {
+        position: fixed;
         bottom: 0;
         left: 50%;
         transform: translateX(-50%);
