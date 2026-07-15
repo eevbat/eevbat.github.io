@@ -14,7 +14,7 @@ button {
   background: transparent;
 }
 
-.material-icons.md-dark { color: rgba(0, 0, 0, 0.75); }
+.material-icons.md-dark { color: rgba(170, 170, 170, 0.75); }
 /*------------------------
     Audio Player - AP
 ------------------------*/
@@ -22,6 +22,7 @@ button {
 .ap {
   position: relative;
   width: 100%;
+  max-width: 100%;
   min-height: 120px;
   font-family: Arial, sans-serif;
   font-size: 14px;
@@ -29,16 +30,17 @@ button {
      -moz-user-select: none;
       -ms-user-select: none;
           user-select: none;
-  color: #333;
-  background: #f1f1f1;
-  border: 1px solid #ccc;
+  color: #fafafa;
+  background: #585858;
+  border: 1px solid #383838;
   box-shadow: 0 0 14px rgba(0,0,0,0.15);
   z-index: 1;
 }
 .ap-inner {
-  max-width: 700px;
+  max-width: 100%;
   margin: 0 auto;
   height: 100%;
+  padding: 0 8px;
 }
 .ap-panel {
   align-items: center;
@@ -125,7 +127,7 @@ button {
   z-index: 999;
 }
 .ap-bar {
-  background: #f50;
+  background: rgb(0, 161, 121);
   z-index: 9999;
 }
 .ap-bar:after {
@@ -137,7 +139,7 @@ button {
   margin-top: -4px;
   content: '';
   border-radius: 6px;
-  background: #f50;
+  background: rgb(0, 161, 121);
   opacity: 0;
   -webkit-transition: opacity .3s ease;
   transition: opacity .3s ease;
@@ -235,7 +237,7 @@ button {
   left: 0;
   right: 0;
   bottom: 0;
-  background: #f50;
+  background: rgb(0, 161, 121);
   height: 50%;
   border-radius: 3px;
 }
@@ -268,6 +270,20 @@ button {
     -webkit-flex: 1;
         -ms-flex: 1;
             flex: 1;
+  }
+}
+@media(max-width:700px) {
+  .ap {
+    font-size: 12px;
+  }
+  .ap--track {
+    -webkit-flex: 1 60%;
+        -ms-flex: 1 60%;
+            flex: 1 60%;
+    padding: 0 6px;
+  }
+  .ap-title {
+    padding-right: 40px;
   }
 }
 #player .ap {
@@ -319,17 +335,19 @@ button {
   PlayList
 --------------------*/
 .pl-container {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 50px;
-  left: 0;
-  margin: auto;
+  position: relative;
+  width: min(90vw, 700px);
+  max-width: 700px;
+  margin: 16px auto;
+  padding: 10px 0;
   overflow: auto;
   font-family: Arial, sans-serif;
   font-size: 14px;
   background: #f1f1f1;
+  box-sizing: border-box;
   z-index: 999;
+  min-height: 120px;
+  max-height: 50vh;
 }
 .pl-lead {
   font-size: 24px;

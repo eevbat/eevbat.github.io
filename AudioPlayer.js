@@ -468,6 +468,13 @@ var AudioPlayer = (function() {
   function plToggle() {
     this.classList.toggle('ap-active');
     pl.classList.toggle('hide');
+    var wrapper = player && player.closest ? player.closest('#player-background-shell') : null;
+    if (!wrapper && player && player.parentNode) {
+      wrapper = player.parentNode.parentNode;
+    }
+    if (wrapper) {
+      wrapper.classList.toggle('playlist-open');
+    }
   }
 
   function update() {

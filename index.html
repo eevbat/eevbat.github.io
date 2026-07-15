@@ -11,46 +11,79 @@
       body {
         margin: 0;
         padding: 0;
+        min-height: 100vh;
         font-family: Arial, sans-serif;
         background: #424242;
         color: #383838;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        align-items: center;
+      }
+
+      #player-background-shell {
+        position: relative;
+        width: min(90vw, 700px);
+        max-width: 700px;
+        margin: 0 auto;
+        overflow: visible;
       }
 
       #player {
         position: relative;
-        max-width: 700px;
-        margin: 0 auto;
-        height: auto;
-        border: solid 1px gray;
-        background: #3b3b3b;
+        width: 100%;
+        border: solid 1px rgb(0, 0, 0);
+        background: rgba(59, 59, 59, 0.9);
+        box-sizing: border-box;
+        overflow: hidden;
+        z-index: 1;
       }
 
-      #gif-overlay-container {
-        position: fixed;
-        bottom: -20px;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 999;
+      #gif-background-container {
+        position: absolute;
+        left: 25%;
+        width: 50%;
+        bottom: 10%;
+        transform: translateY(-20px);
+        transition: transform 0.05s ease;
+        z-index: 0;
         pointer-events: none;
-        width: 300px;
-        height: 200px;
-        background: transparent;
+        overflow: visible;
+      }
+
+      .playlist-open #gif-background-container {
+        transform: translateY(-325px);
+      }
+
+      #player-dim-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        pointer-events: none;
+        background: rgba(0, 0, 0, 0.18);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
       }
 
       #hud-canvas {
         display: block;
-        width: 300px;
-        height: 200px;
+        width: 100%;
+        height: auto;
+        max-height: 60vh;
         background: transparent;
+        position: relative;
+        top: -70px;
       }
     </style>
   </head>
 
   <body>
-    <div id="player"></div>
-
-    <div id="gif-overlay-container">
-      <canvas id="hud-canvas" width="300" height="200"></canvas>
+    <div id="player-background-shell">
+      <div id="gif-background-container">
+        <canvas id="hud-canvas" width="300" height="200"></canvas>
+      </div>
+      <div id="player-dim-overlay"></div>
+      <div id="player"></div>
     </div>
 
     <script src="AudioPlayer.js"></script>
@@ -81,18 +114,55 @@
       for (let i = 1; i <= GIF_FRAME_COUNT; i++) {
         const img = new Image();
         img.src = `${GIF_FRAME_FOLDER}/${GIF_FRAME_PREFIX}${i}.png`;
+        img.onload = resizeGifCanvas;
         frames.push(img);
+      }
+
+      function resizeGifCanvas() {
+        const frame = frames.find(img => img.complete && img.naturalWidth && img.naturalHeight);
+        if (!frame) return;
+        const container = document.getElementById('gif-background-container');
+        const maxWidth = container.clientWidth;
+        const maxHeight = window.innerHeight * 0.6;
+        const ratio = frame.naturalHeight / frame.naturalWidth;
+        let width = maxWidth;
+        let height = width * ratio;
+        if (height > maxHeight) {
+          height = maxHeight;
+          width = height / ratio;
+        }
+
+        const dpr = window.devicePixelRatio || 1;
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      function drawGifFrame(frame) {
+        if (!frame) return;
+        const cssWidth = canvas.width / (window.devicePixelRatio || 1);
+        const cssHeight = canvas.height / (window.devicePixelRatio || 1);
+        ctx.clearRect(0, 0, cssWidth, cssHeight);
+        const imageRatio = frame.naturalWidth / frame.naturalHeight;
+        const scale = Math.min(cssWidth / frame.naturalWidth, cssHeight / frame.naturalHeight);
+        const drawWidth = frame.naturalWidth * scale;
+        const drawHeight = frame.naturalHeight * scale;
+        const x = (cssWidth - drawWidth) / 2;
+        const y = (cssHeight - drawHeight) / 2;
+        ctx.drawImage(frame, x, y, drawWidth, drawHeight);
       }
 
       function drawInitialFrame() {
         const initialFrame = frames[2];
         if (initialFrame && initialFrame.complete) {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(initialFrame, 0, 0, canvas.width, canvas.height);
+          resizeGifCanvas();
+          drawGifFrame(initialFrame);
         } else {
           initialFrame.onload = function() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(initialFrame, 0, 0, canvas.width, canvas.height);
+            resizeGifCanvas();
+            drawGifFrame(initialFrame);
           };
         }
       }
@@ -147,8 +217,7 @@
           updateTrackBPM();
           const currentFrame = getFrameForCurrentBeat(nativeAudio.currentTime);
           if (currentFrame && currentFrame.complete) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(currentFrame, 0, 0, canvas.width, canvas.height);
+            drawGifFrame(currentFrame);
           }
         }
         requestAnimationFrame(syncAnimation);
