@@ -27,9 +27,9 @@ button {
   font-family: 'Perfect DOS VGA 437', Arial, sans-serif;
   font-size: 14px;
   -webkit-user-select: none;
-     -moz-user-select: none;
-      -ms-user-select: none;
-          user-select: none;
+      -moz-user-select: none;
+       -ms-user-select: none;
+           user-select: none;
   color: #fafafa;
   background: #585858;
   border: 1px solid #383838;

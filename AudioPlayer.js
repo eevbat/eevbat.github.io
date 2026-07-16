@@ -311,10 +311,10 @@ var AudioPlayer = (function() {
 
       imageDiv.innerHTML = ''
       if (playList[current].icon) {
-	let image = create('img', {
-	  src: playList[current].icon
-	})
-	imageDiv.appendChild(image)
+  let image = create('img', {
+    src: playList[current].icon
+  })
+  imageDiv.appendChild(image)
       }
     }
 
@@ -362,24 +362,24 @@ var AudioPlayer = (function() {
   function next(interactive) {
     if (shuffling) {
       if (shuffling.length === 0) {
-	if (repeating || interactive) {
-	  shuffling = [...Array(playList.length).keys()]
-	} else {
-	  audio.pause();
-	  plActive();
-	  
-	  return;
-	}
+  if (repeating || interactive) {
+    shuffling = [...Array(playList.length).keys()]
+  } else {
+    audio.pause();
+    plActive();
+    
+    return;
+  }
       }
 
       let i = Math.floor(Math.random() * shuffling.length);
       index = shuffling.splice(i, 1)[0];
     } else {
       if (index === playList.length - 1 && (!repeating && !interactive)) {
-	audio.pause();
-	plActive();
-	playBtn.classList.remove('playing');
-	return;
+  audio.pause();
+  plActive();
+  playBtn.classList.remove('playing');
+  return;
       }
 
       index = (index === playList.length - 1) ? 0 : index + 1;

@@ -19,7 +19,9 @@
         padding: 0;
         min-height: 100vh;
         font-family: 'Perfect DOS VGA 437', Arial, sans-serif;
-        background: #424242;
+        background: linear-gradient(135deg, #2f2f2f 0%, #190030 45%, #4b013b 100%);
+        background-size: 140% 140%;
+        background-position: var(--gradient-x, 0%) var(--gradient-y, 0%);
         color: #383838;
         display: flex;
         flex-direction: column;
@@ -41,11 +43,11 @@
         background-size: 96px auto;
         background-repeat: repeat;
         background-position: calc(50% + var(--bg-offset-x, 0px)) calc(50% + var(--bg-offset-y, 0px));
-        opacity: 0.16;
+        opacity: var(--bg-opacity, 0.16);
         pointer-events: none;
         transform: scale(var(--bg-scale, 1));
         transform-origin: center center;
-        will-change: transform, background-position;
+        will-change: transform, background-position, opacity;
       }
 
       #scrolling-background::after {
@@ -148,12 +150,13 @@
       let nativeAudio = null;
       let lastTrackSrc = '';
       let playerInitialized = false;
+      let activeTrackKey = '';
       let bgOffsetX = 0;
       let bgOffsetY = 0;
+      let gradientOffsetX = 0;
+      let gradientOffsetY = 0;
       let lastFrameTime = 0;
-      let currentZoom = 1;
-      let targetZoom = 1;
-      let zoomPhase = 0;
+      let animationLoopActive = false;
 
       const frames = [];
       for (let i = 1; i <= GIF_FRAME_COUNT; i++) {
@@ -222,28 +225,32 @@
         });
       }
 
+      function getScrollSpeedForBpm(bpm) {
+        return Math.max(40, Math.min(90, 50 + bpm * 0.15));
+      }
+
+      function resetBackgroundAnimation() {
+        if (backgroundLayer) {
+          backgroundLayer.style.setProperty('--bg-scale', '1');
+          backgroundLayer.style.setProperty('--bg-offset-x', `${bgOffsetX.toFixed(2)}px`);
+          backgroundLayer.style.setProperty('--bg-offset-y', `${bgOffsetY.toFixed(2)}px`);
+        }
+      }
+
       function updateTrackBPM() {
         if (!nativeAudio) return;
 
-        const currentSrc = nativeAudio.src;
-        if (currentSrc === lastTrackSrc) return;
-        lastTrackSrc = currentSrc;
+        const currentSrc = nativeAudio.src || '';
+        const trackChanged = currentSrc !== lastTrackSrc;
+        if (trackChanged) {
+          lastTrackSrc = currentSrc;
+        }
 
         const foundTrack = getTrackFromSrc(currentSrc);
         if (foundTrack && foundTrack.bpm) {
           currentBPM = foundTrack.bpm;
           loopDuration = (60 / currentBPM) * BEATS_PER_ANIMATION_LOOP;
-          bgOffsetX = 0;
-          bgOffsetY = 0;
-          currentZoom = 1;
-          lastBeatNumber = -1;
-          lastFrameTime = 0;
-          if (backgroundLayer) {
-            backgroundLayer.style.setProperty('--bg-scale', '1');
-            backgroundLayer.style.setProperty('--bg-offset-x', '0px');
-            backgroundLayer.style.setProperty('--bg-offset-y', '0px');
-          }
-          console.log(`Track changed! Title: "${foundTrack.title}" | Dynamic BPM Set to: ${currentBPM}`);
+          targetScrollSpeed = getScrollSpeedForBpm(currentBPM);
         }
       }
 
@@ -277,50 +284,42 @@
         const deltaTime = Math.min(0.032, (timestamp - lastFrameTime) / 1000 || 0.016);
         lastFrameTime = timestamp || performance.now();
 
-        const beatInterval = 60 / currentBPM;
-        const baseScrollMultiplier = Math.max(0.4, Math.min(2.2, beatInterval / 0.6));
-        const scrollMultiplier = baseScrollMultiplier * 0.5;
-        const scrollSpeedX = 90 * scrollMultiplier;
-        const scrollSpeedY = 60 * scrollMultiplier;
-        const effectiveScrollSpeedX = nativeAudio && nativeAudio.paused ? 4 : scrollSpeedX;
-        const effectiveScrollSpeedY = nativeAudio && nativeAudio.paused ? 4 : scrollSpeedY;
-        bgOffsetX += effectiveScrollSpeedX * deltaTime;
-        bgOffsetY += effectiveScrollSpeedY * deltaTime;
+        const imageScrollSpeedX = 70;
+        const imageScrollSpeedY = 45;
+        const gradientScrollSpeedX = 8;
+        const gradientScrollSpeedY = 5;
+
+        bgOffsetX += imageScrollSpeedX * deltaTime;
+        bgOffsetY += imageScrollSpeedY * deltaTime;
+        gradientOffsetX += gradientScrollSpeedX * deltaTime;
+        gradientOffsetY += gradientScrollSpeedY * deltaTime;
 
         const wrapWidth = 1200;
         const wrapHeight = 800;
         bgOffsetX = ((bgOffsetX % wrapWidth) + wrapWidth) % wrapWidth;
         bgOffsetY = ((bgOffsetY % wrapHeight) + wrapHeight) % wrapHeight;
 
-        const secondsPerBeat = 60 / currentBPM;
-        const beatProgress = nativeAudio && !nativeAudio.paused && !nativeAudio.ended
-          ? (nativeAudio.currentTime % secondsPerBeat) / secondsPerBeat
-          : 0.25;
+        const gradientWrapX = 200;
+        const gradientWrapY = 200;
+        gradientOffsetX = ((gradientOffsetX % gradientWrapX) + gradientWrapX) % gradientWrapX;
+        gradientOffsetY = ((gradientOffsetY % gradientWrapY) + gradientWrapY) % gradientWrapY;
 
-        zoomPhase += deltaTime * (currentBPM / 60);
-        if (zoomPhase > Math.PI * 2) {
-          zoomPhase -= Math.PI * 2;
-        }
+        document.body.style.setProperty('--gradient-x', `${gradientOffsetX.toFixed(2)}%`);
+        document.body.style.setProperty('--gradient-y', `${gradientOffsetY.toFixed(2)}%`);
 
-        if (nativeAudio && !nativeAudio.paused && !nativeAudio.ended) {
-          const zoomPeak = 1 + Math.min(0.10, 0.025 + (currentBPM / 180) * 0.03);
-          const smoothWave = 0.5 - 0.5 * Math.cos(zoomPhase);
-          targetZoom = 1 + (zoomPeak - 1) * smoothWave;
-        } else {
-          targetZoom = 1;
-        }
-
-        currentZoom += (targetZoom - currentZoom) * 0.18;
-
-        backgroundLayer.style.setProperty('--bg-scale', currentZoom.toFixed(3));
-        backgroundLayer.style.transform = `scale(${currentZoom.toFixed(3)})`;
+        backgroundLayer.style.setProperty('--bg-scale', '1');
+        backgroundLayer.style.transform = 'scale(1)';
         backgroundLayer.style.setProperty('--bg-offset-x', `${bgOffsetX.toFixed(2)}px`);
         backgroundLayer.style.setProperty('--bg-offset-y', `${bgOffsetY.toFixed(2)}px`);
+        backgroundLayer.style.setProperty('--bg-opacity', '0.5');
       }
 
       function syncAnimation(timestamp) {
-        if (nativeAudio && !nativeAudio.paused && !nativeAudio.ended && loopDuration > 0) {
+        animationLoopActive = true;
+        if (nativeAudio) {
           updateTrackBPM();
+        }
+        if (nativeAudio && !nativeAudio.paused && !nativeAudio.ended && loopDuration > 0) {
           updateBackgroundLayer(timestamp);
           const currentFrame = getFrameForCurrentBeat(nativeAudio.currentTime);
           if (currentFrame && currentFrame.complete) {
@@ -339,15 +338,19 @@
           return;
         }
 
-        nativeAudio.addEventListener('play', () => {
+        const restartAnimation = () => {
           updateTrackBPM();
-          requestAnimationFrame(syncAnimation);
-        });
+        };
+
+        nativeAudio.addEventListener('play', restartAnimation);
+        nativeAudio.addEventListener('seeked', restartAnimation);
+        nativeAudio.addEventListener('loadedmetadata', restartAnimation);
+        nativeAudio.addEventListener('pause', restartAnimation);
+        nativeAudio.addEventListener('ended', restartAnimation);
         nativeAudio.addEventListener('timeupdate', updateTrackBPM);
 
         if (!nativeAudio.paused) {
-          updateTrackBPM();
-          requestAnimationFrame(syncAnimation);
+          restartAnimation();
         }
 
         console.log('Native audio attached for HUD sync.', nativeAudio);
@@ -376,7 +379,9 @@
         drawInitialFrame();
         initPlayer();
         attachAudioEvents();
-        requestAnimationFrame(syncAnimation);
+        if (!animationLoopActive) {
+          requestAnimationFrame(syncAnimation);
+        }
       }
 
       if (document.readyState === 'complete') {
