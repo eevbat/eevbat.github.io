@@ -8,21 +8,56 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <link rel="stylesheet" href="AudioPlayer.css">
     <style>
+      @font-face {
+        font-family: 'Perfect DOS VGA 437';
+        src: url('Perfect DOS VGA 437.ttf') format('truetype');
+        font-weight: normal;
+        font-style: normal;
+      }
       body {
         margin: 0;
         padding: 0;
         min-height: 100vh;
-        font-family: Arial, sans-serif;
+        font-family: 'Perfect DOS VGA 437', Arial, sans-serif;
         background: #424242;
         color: #383838;
         display: flex;
         flex-direction: column;
         justify-content: flex-end;
         align-items: center;
+        position: relative;
+        overflow: hidden;
+        isolation: isolate;
+        image-rendering: pixelated;
+        image-rendering: -moz-crisp-edges;
+        image-rendering: crisp-edges;
+      }
+
+      #scrolling-background {
+        position: fixed;
+        inset: -10%;
+        z-index: -2;
+        background-image: url('images.png');
+        background-size: 96px auto;
+        background-repeat: repeat;
+        background-position: calc(50% + var(--bg-offset-x, 0px)) calc(50% + var(--bg-offset-y, 0px));
+        opacity: 0.16;
+        pointer-events: none;
+        transform: scale(var(--bg-scale, 1));
+        transform-origin: center center;
+        will-change: transform, background-position;
+      }
+
+      #scrolling-background::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.05));
       }
 
       #player-background-shell {
         position: relative;
+        z-index: 1;
         width: min(90vw, 700px);
         max-width: 700px;
         margin: 0 auto;
@@ -37,6 +72,7 @@
         box-sizing: border-box;
         overflow: hidden;
         z-index: 1;
+        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
       }
 
       #gif-background-container {
@@ -73,11 +109,13 @@
         background: transparent;
         position: relative;
         top: -70px;
+        filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.45));
       }
     </style>
   </head>
 
   <body>
+    <div id="scrolling-background"></div>
     <div id="player-background-shell">
       <div id="gif-background-container">
         <canvas id="hud-canvas" width="300" height="200"></canvas>
@@ -98,6 +136,7 @@
 
       const canvas = document.getElementById('hud-canvas');
       const ctx = canvas.getContext('2d');
+      const backgroundLayer = document.getElementById('scrolling-background');
 
       const BEATS_PER_ANIMATION_LOOP = 4;
       const GIF_FRAME_COUNT = 6;
@@ -109,6 +148,12 @@
       let nativeAudio = null;
       let lastTrackSrc = '';
       let playerInitialized = false;
+      let bgOffsetX = 0;
+      let bgOffsetY = 0;
+      let lastFrameTime = 0;
+      let currentZoom = 1;
+      let targetZoom = 1;
+      let zoomPhase = 0;
 
       const frames = [];
       for (let i = 1; i <= GIF_FRAME_COUNT; i++) {
@@ -188,6 +233,16 @@
         if (foundTrack && foundTrack.bpm) {
           currentBPM = foundTrack.bpm;
           loopDuration = (60 / currentBPM) * BEATS_PER_ANIMATION_LOOP;
+          bgOffsetX = 0;
+          bgOffsetY = 0;
+          currentZoom = 1;
+          lastBeatNumber = -1;
+          lastFrameTime = 0;
+          if (backgroundLayer) {
+            backgroundLayer.style.setProperty('--bg-scale', '1');
+            backgroundLayer.style.setProperty('--bg-offset-x', '0px');
+            backgroundLayer.style.setProperty('--bg-offset-y', '0px');
+          }
           console.log(`Track changed! Title: "${foundTrack.title}" | Dynamic BPM Set to: ${currentBPM}`);
         }
       }
@@ -212,13 +267,67 @@
         return frames[groupStart + 2];
       }
 
-      function syncAnimation() {
+      function updateBackgroundLayer(timestamp) {
+        if (!backgroundLayer) return;
+
+        if (!lastFrameTime) {
+          lastFrameTime = timestamp || performance.now();
+        }
+
+        const deltaTime = Math.min(0.032, (timestamp - lastFrameTime) / 1000 || 0.016);
+        lastFrameTime = timestamp || performance.now();
+
+        const beatInterval = 60 / currentBPM;
+        const baseScrollMultiplier = Math.max(0.4, Math.min(2.2, beatInterval / 0.6));
+        const scrollMultiplier = baseScrollMultiplier * 0.5;
+        const scrollSpeedX = 90 * scrollMultiplier;
+        const scrollSpeedY = 60 * scrollMultiplier;
+        const effectiveScrollSpeedX = nativeAudio && nativeAudio.paused ? 4 : scrollSpeedX;
+        const effectiveScrollSpeedY = nativeAudio && nativeAudio.paused ? 4 : scrollSpeedY;
+        bgOffsetX += effectiveScrollSpeedX * deltaTime;
+        bgOffsetY += effectiveScrollSpeedY * deltaTime;
+
+        const wrapWidth = 1200;
+        const wrapHeight = 800;
+        bgOffsetX = ((bgOffsetX % wrapWidth) + wrapWidth) % wrapWidth;
+        bgOffsetY = ((bgOffsetY % wrapHeight) + wrapHeight) % wrapHeight;
+
+        const secondsPerBeat = 60 / currentBPM;
+        const beatProgress = nativeAudio && !nativeAudio.paused && !nativeAudio.ended
+          ? (nativeAudio.currentTime % secondsPerBeat) / secondsPerBeat
+          : 0.25;
+
+        zoomPhase += deltaTime * (currentBPM / 60);
+        if (zoomPhase > Math.PI * 2) {
+          zoomPhase -= Math.PI * 2;
+        }
+
+        if (nativeAudio && !nativeAudio.paused && !nativeAudio.ended) {
+          const zoomPeak = 1 + Math.min(0.10, 0.025 + (currentBPM / 180) * 0.03);
+          const smoothWave = 0.5 - 0.5 * Math.cos(zoomPhase);
+          targetZoom = 1 + (zoomPeak - 1) * smoothWave;
+        } else {
+          targetZoom = 1;
+        }
+
+        currentZoom += (targetZoom - currentZoom) * 0.18;
+
+        backgroundLayer.style.setProperty('--bg-scale', currentZoom.toFixed(3));
+        backgroundLayer.style.transform = `scale(${currentZoom.toFixed(3)})`;
+        backgroundLayer.style.setProperty('--bg-offset-x', `${bgOffsetX.toFixed(2)}px`);
+        backgroundLayer.style.setProperty('--bg-offset-y', `${bgOffsetY.toFixed(2)}px`);
+      }
+
+      function syncAnimation(timestamp) {
         if (nativeAudio && !nativeAudio.paused && !nativeAudio.ended && loopDuration > 0) {
           updateTrackBPM();
+          updateBackgroundLayer(timestamp);
           const currentFrame = getFrameForCurrentBeat(nativeAudio.currentTime);
           if (currentFrame && currentFrame.complete) {
             drawGifFrame(currentFrame);
           }
+        } else {
+          updateBackgroundLayer(timestamp);
         }
         requestAnimationFrame(syncAnimation);
       }
